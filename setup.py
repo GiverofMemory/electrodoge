@@ -35,14 +35,9 @@ data_files = []
 if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
     # note: we can't use absolute paths here. see #7787
     data_files += [
-<<<<<<< HEAD
-        (os.path.join(usr_share, 'applications/'), ['electrodoge.desktop']),
-        (os.path.join(usr_share, icons_dirname), ['electrum/gui/icons/electrodoge.png']),
-=======
-        (os.path.join('share', 'applications'),               ['electrum.desktop']),
-        (os.path.join('share', 'pixmaps'),                    ['electrum/gui/icons/electrum.png']),
-        (os.path.join('share', 'icons/hicolor/128x128/apps'), ['electrum/gui/icons/electrum.png']),
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
+        (os.path.join('share', 'applications'),               ['electrodoge.desktop']),
+        (os.path.join('share', 'pixmaps'),                    ['electrum/gui/icons/electrodoge.png']),
+        (os.path.join('share', 'icons/hicolor/128x128/apps'), ['electrum/gui/icons/electrodoge.png']),
     ]
 
 extras_require = {
@@ -65,21 +60,9 @@ setup(
     python_requires='>={}'.format(MIN_PYTHON_VERSION),
     install_requires=requirements,
     extras_require=extras_require,
-<<<<<<< HEAD
-    packages=[
-        'electrodoge',
-        'electrodoge.qrreader',
-        'electrodoge.gui',
-        'electrodoge.gui.qt',
-        'electrodoge.gui.qt.qrreader',
-        'electrodoge.gui.qt.qrreader.qtmultimedia',
-        'electrodoge.plugins',
-    ] + [('electrodoge.plugins.'+pkg) for pkg in find_packages('electrum/plugins')],
-=======
-    packages=(['electrum',]
-              + [('electrum.'+pkg) for pkg in
-                 find_packages('electrum', exclude=["tests", "gui.kivy", "gui.kivy.*"])]),
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
+    packages=(['electrodoge',]
+              + [('electrodoge.'+pkg) for pkg in
+                 find_packages('electrodoge', exclude=["tests", "gui.kivy", "gui.kivy.*"])]),
     package_dir={
         'electrodoge': 'electrum'
     },

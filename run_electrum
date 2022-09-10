@@ -41,17 +41,12 @@ from typing import TYPE_CHECKING, Optional
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-<<<<<<< HEAD
-is_bundle = getattr(sys, 'frozen', False)
-is_local = not is_bundle and os.path.exists(os.path.join(script_dir, "electrodoge.desktop"))
-=======
 is_pyinstaller = getattr(sys, 'frozen', False)
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
 is_android = 'ANDROID_DATA' in os.environ
 is_appimage = 'APPIMAGE' in os.environ
 # is_local: unpacked tar.gz but not pip installed, or git clone
 is_local = (not is_pyinstaller and not is_android and not is_appimage
-            and os.path.exists(os.path.join(script_dir, "electrum.desktop")))
+            and os.path.exists(os.path.join(script_dir, "electrodoge.desktop")))
 is_git_clone = is_local and os.path.exists(os.path.join(script_dir, ".git"))
 
 if is_git_clone:
