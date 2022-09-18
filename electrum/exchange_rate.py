@@ -48,12 +48,17 @@ def to_decimal(x: Union[str, float, int, Decimal]) -> Decimal:
     return Decimal(str(x))
 
 
+POLL_PERIOD_SPOT_RATE = 150  # approx. every 2.5 minutes, try to refresh spot price
+EXPIRY_SPOT_RATE = 600       # spot price becomes stale after 10 minutes
+
+
 class ExchangeBase(Logger):
 
     def __init__(self, on_quotes, on_history):
         Logger.__init__(self)
         self._history = {}  # type: Dict[str, Dict[str, str]]
-        self.quotes = {}  # type: Dict[str, Optional[Decimal]]
+        self._quotes = {}  # type: Dict[str, Optional[Decimal]]
+        self._quotes_timestamp = 0  # type: Union[int, float]
         self.on_quotes = on_quotes
         self.on_history = on_history
 
@@ -89,16 +94,15 @@ class ExchangeBase(Logger):
     async def update_safe(self, ccy: str) -> None:
         try:
             self.logger.info(f"getting fx quotes for {ccy}")
-            self.quotes = await self.get_rates(ccy)
-            assert all(isinstance(rate, (Decimal, type(None))) for rate in self.quotes.values()), \
-                f"fx rate must be Decimal, got {self.quotes}"
+            self._quotes = await self.get_rates(ccy)
+            assert all(isinstance(rate, (Decimal, type(None))) for rate in self._quotes.values()), \
+                f"fx rate must be Decimal, got {self._quotes}"
+            self._quotes_timestamp = time.time()
             self.logger.info("received fx quotes")
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             self.logger.info(f"failed fx quotes: {repr(e)}")
-            self.quotes = {}
         except Exception as e:
             self.logger.exception(f"failed fx quotes: {repr(e)}")
-            self.quotes = {}
         self.on_quotes()
 
     def read_historical_rates(self, ccy: str, cache_dir: str) -> Optional[dict]:
@@ -167,6 +171,16 @@ class ExchangeBase(Logger):
         rates = await self.get_rates('')
         return sorted([str(a) for (a, b) in rates.items() if b is not None and len(a)==3])
 
+    def get_cached_spot_quote(self, ccy: str) -> Decimal:
+        """Returns the cached exchange rate as a Decimal"""
+        rate = self._quotes.get(ccy)
+        if rate is None:
+            return Decimal('NaN')
+        if self._quotes_timestamp + EXPIRY_SPOT_RATE < time.time():
+            # Our rate is stale. Probably better to return no rate than an incorrect one.
+            return Decimal('NaN')
+        return Decimal(rate)
+
 
 class Coinbase(ExchangeBase):
 
@@ -220,11 +234,48 @@ class CoinCodex(ExchangeBase):
         return ["USD"]
 
     async def request_history(self, ccy):
+<<<<<<< HEAD
         now = datetime.now().strftime("%Y-%m-%d")
         history = await self.get_json('coincodex.com',
                                       '/api/coincodex/get_coin_history/doge/2012-07-22/%s/1' % now)
         return dict([(datetime.utcfromtimestamp(h[0]).strftime('%Y-%m-%d'), str(h[1]))
                      for h in history['DOGE']])
+=======
+        json = await self.get_json('winkdex.com',
+                             "/api/v0/series?start_time=1342915200")
+        history = json['series'][0]['results']
+        return dict([(h['timestamp'][:10], str(to_decimal(h['price']) / 100))
+                     for h in history])
+
+
+class Zaif(ExchangeBase):
+    async def get_rates(self, ccy):
+        json = await self.get_json('api.zaif.jp', '/api/1/last_price/btc_jpy')
+        return {'JPY': to_decimal(json['last_price'])}
+
+
+class Bitragem(ExchangeBase):
+
+    async def get_rates(self,ccy):
+        json = await self.get_json('api.bitragem.com', '/v1/index?asset=BTC&market=BRL')
+        return {'BRL': to_decimal(json['response']['index'])}
+
+
+class Biscoint(ExchangeBase):
+
+    async def get_rates(self,ccy):
+        json = await self.get_json('api.biscoint.io', '/v1/ticker?base=BTC&quote=BRL')
+        return {'BRL': to_decimal(json['data']['last'])}
+
+
+class Walltime(ExchangeBase):
+
+    async def get_rates(self, ccy):
+        json = await self.get_json('s3.amazonaws.com',
+                             '/data-production-walltime-info/production/dynamic/walltime-info.json')
+        return {'BRL': to_decimal(json['BRL_XBT']['last_inexact'])}
+
+>>>>>>> a488be61db541feebce6f17c5edc81147f6e6084
 
 def dictinvert(d):
     inv = {}
@@ -334,9 +385,9 @@ class FxThread(ThreadJob, EventListener):
 
     async def run(self):
         while True:
-            # approx. every 2.5 minutes, refresh spot price
+            # every few minutes, refresh spot price
             try:
-                async with timeout_after(150):
+                async with timeout_after(POLL_PERIOD_SPOT_RATE):
                     await self._trigger.wait()
                     self._trigger.clear()
                 # we were manually triggered, so get historical rates
@@ -375,7 +426,7 @@ class FxThread(ThreadJob, EventListener):
     def set_fiat_address_config(self, b):
         self.config.set_key('fiat_address', bool(b))
 
-    def get_currency(self):
+    def get_currency(self) -> str:
         '''Use when dynamic fetching is needed'''
         return self.config.get("currency", DEFAULT_CURRENCY)
 
@@ -417,10 +468,7 @@ class FxThread(ThreadJob, EventListener):
         """Returns the exchange rate as a Decimal"""
         if not self.is_enabled():
             return Decimal('NaN')
-        rate = self.exchange.quotes.get(self.ccy)
-        if rate is None:
-            return Decimal('NaN')
-        return Decimal(rate)
+        return self.exchange.get_cached_spot_quote(self.ccy)
 
     def format_amount(self, btc_balance, *, timestamp: int = None) -> str:
         if timestamp is None:
@@ -459,7 +507,7 @@ class FxThread(ThreadJob, EventListener):
         # Frequently there is no rate for today, until tomorrow :)
         # Use spot quotes in that case
         if rate.is_nan() and (datetime.today().date() - d_t.date()).days <= 2:
-            rate = self.exchange.quotes.get(self.ccy, 'NaN')
+            rate = self.exchange.get_cached_spot_quote(self.ccy)
             self.history_used_spot = True
         if rate is None:
             rate = 'NaN'

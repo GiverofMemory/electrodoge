@@ -64,13 +64,13 @@ class QERequestDetails(QObject):
     statusChanged = pyqtSignal()
     @pyqtProperty(int, notify=statusChanged)
     def status(self):
-        return self._wallet.wallet.get_request_status(self._key)
+        req = self._wallet.wallet.get_request(self._key)
+        return self._wallet.wallet.get_invoice_status(req)
 
     statusStringChanged = pyqtSignal()
     @pyqtProperty(str, notify=statusStringChanged)
     def status_str(self):
         return self._req.get_status_str(self.status)
-
 
     @pyqtProperty(bool, notify=detailsChanged)
     def isLightning(self):
@@ -120,7 +120,7 @@ class QERequestDetails(QObject):
         self._req = self._wallet.wallet.get_request(self._key)
 
         if self._req is None:
-            self._logger.error(f'payment request key {key} unknown in wallet {self._wallet.name}')
+            self._logger.error(f'payment request key {self._key} unknown in wallet {self._wallet.name}')
             return
 
         self._amount = QEAmount(from_invoice=self._req)

@@ -646,7 +646,7 @@ class SendTab(QWidget, MessageBoxMixin, Logger):
 
     def pay_lightning_invoice(self, invoice: Invoice):
         amount_sat = invoice.get_amount_sat()
-        key = self.wallet.get_key_for_outgoing_invoice(invoice)
+        key = invoice.get_id()
         if amount_sat is None:
             raise Exception("missing amount for LN invoice")
         if not self.wallet.lnworker.can_pay_invoice(invoice):
@@ -686,7 +686,7 @@ class SendTab(QWidget, MessageBoxMixin, Logger):
                 choices[3] = msg
             msg = _('You cannot pay that invoice using Lightning.')
             if self.wallet.lnworker.channels:
-                msg += '\n' + _('Your channels can send {}.').format(self.format_amount(num_sats_can_send) + self.base_unit())
+                msg += '\n' + _('Your channels can send {}.').format(self.format_amount(num_sats_can_send) + ' ' + self.base_unit())
             if not choices:
                 self.window.show_error(msg)
                 return

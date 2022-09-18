@@ -114,7 +114,7 @@ class RequestList(MyTreeView):
         if request is None:
             return
         status_item = model.item(row, self.Columns.STATUS)
-        status = self.wallet.get_request_status(key)
+        status = self.wallet.get_invoice_status(request)
         status_str = request.get_status_str(status)
         status_item.setText(status_str)
         status_item.setIcon(read_QIcon(pr_icons.get(status)))
@@ -126,8 +126,8 @@ class RequestList(MyTreeView):
         self.std_model.clear()
         self.update_headers(self.__class__.headers)
         for req in self.wallet.get_unpaid_requests():
-            key = self.wallet.get_key_for_receive_request(req)
-            status = self.wallet.get_request_status(key)
+            key = req.get_id()
+            status = self.wallet.get_invoice_status(req)
             status_str = req.get_status_str(status)
             timestamp = req.get_time()
             amount = req.get_amount_sat()
