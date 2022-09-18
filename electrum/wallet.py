@@ -2484,41 +2484,6 @@ class Abstract_Wallet(ABC, Logger, EventListener):
         key = self.add_payment_request(req)
         return key
 
-<<<<<<< HEAD
-    def sign_payment_request(self, key, alias, alias_addr, password):  # FIXME this is broken
-        raise
-        req = self._receive_requests.get(key)
-        assert not req.is_lightning()
-        alias_privkey = self.export_private_key(alias_addr, password)
-        pr = paymentrequest.make_unsigned_request(req)
-        paymentrequest.sign_request_with_alias(pr, alias, alias_privkey)
-        req.bip70 = pr.raw.hex()
-        req['name'] = pr.pki_data
-        req['sig'] = bh2u(pr.signature)
-        self._receive_requests[key] = req
-
-    @classmethod
-    def get_key_for_outgoing_invoice(cls, invoice: Invoice) -> str:
-        """Return the key to use for this invoice in self.invoices."""
-        return invoice.get_id()
-
-    def get_key_for_receive_request(self, req: Invoice, *, sanity_checks: bool = False) -> str:
-        """Return the key to use for this invoice in self.receive_requests."""
-        # FIXME: this should be a method of Invoice
-        if not req.is_lightning():
-            addr = req.get_address() or ""
-            if sanity_checks:
-                if not bitcoin.is_address(addr):
-                    raise Exception(_('Invalid Dogecoin address.'))
-                if not self.is_mine(addr):
-                    raise Exception(_('Address not in wallet.'))
-            key = addr
-        else:
-            key = req.rhash
-        return key
-
-=======
->>>>>>> a488be61db541feebce6f17c5edc81147f6e6084
     def add_payment_request(self, req: Invoice, *, write_to_disk: bool = True):
         request_id = req.get_id()
         self._receive_requests[request_id] = req

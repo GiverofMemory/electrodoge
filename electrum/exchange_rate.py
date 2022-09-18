@@ -234,13 +234,7 @@ class CoinCodex(ExchangeBase):
         return ["USD"]
 
     async def request_history(self, ccy):
-<<<<<<< HEAD
-        now = datetime.now().strftime("%Y-%m-%d")
-        history = await self.get_json('coincodex.com',
-                                      '/api/coincodex/get_coin_history/doge/2012-07-22/%s/1' % now)
-        return dict([(datetime.utcfromtimestamp(h[0]).strftime('%Y-%m-%d'), str(h[1]))
-                     for h in history['DOGE']])
-=======
+
         json = await self.get_json('winkdex.com',
                              "/api/v0/series?start_time=1342915200")
         history = json['series'][0]['results']
@@ -274,8 +268,6 @@ class Walltime(ExchangeBase):
         json = await self.get_json('s3.amazonaws.com',
                              '/data-production-walltime-info/production/dynamic/walltime-info.json')
         return {'BRL': to_decimal(json['BRL_XBT']['last_inexact'])}
-
->>>>>>> a488be61db541feebce6f17c5edc81147f6e6084
 
 def dictinvert(d):
     inv = {}
