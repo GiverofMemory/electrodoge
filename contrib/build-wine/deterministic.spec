@@ -181,4 +181,3 @@ coll = COLLECT(
     icon=home+'electrum/gui/icons/electrum.ico',
     console=False,
     name=os.path.join('dist', 'electrum'))
->>>>>>> a488be61db541feebce6f17c5edc81147f6e6084
