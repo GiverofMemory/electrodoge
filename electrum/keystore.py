@@ -265,10 +265,7 @@ class Imported_KeyStore(Software_KeyStore):
 
     def can_import(self):
         return True
-<<<<<<< HEAD
-=======
 
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
     @also_test_none_password
     def check_password(self, password):
         pubkey = list(self.keypairs.keys())[0]

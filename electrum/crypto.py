@@ -108,20 +108,12 @@ def version_info() -> Mapping[str, Optional[str]]:
 
 class InvalidPadding(Exception):
     pass
-    
 
-<<<<<<< HEAD
-class CiphertextFormatError(Exception):
-    pass
-    
-    
-=======
 
 class CiphertextFormatError(Exception):
     pass
 
 
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
 def append_PKCS7_padding(data: bytes) -> bytes:
     assert_bytes(data)
     padlen = 16 - (len(data) % 16)

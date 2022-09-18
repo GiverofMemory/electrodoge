@@ -89,17 +89,10 @@
                     size: '22dp', '22dp'
                     pos_hint: {'center_y': .5}
                 BlueButton:
-<<<<<<< HEAD
-                    id: address_label
-                    text: _('Lightning') if root.is_lightning else (s.address if s.address else _('Dogecoin Address'))
-                    shorten: True
-                    on_release: root.is_lightning = not root.is_lightning if app.wallet.has_lightning() else False
-=======
                     id: amount_label
                     default_text: _('Amount')
                     text: s.amount if s.amount else _('Amount')
                     on_release: Clock.schedule_once(lambda dt: app.amount_dialog(s, False))
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
             CardSeparator:
                 opacity: message_selection.opacity
                 color: blue_bottom.foreground_color

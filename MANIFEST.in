@@ -1,5 +1,8 @@
 include LICENCE RELEASE-NOTES AUTHORS
+<<<<<<< HEAD
 include README.rst
+=======
+>>>>>>> 6354f30a876b12c17f8b5576fa559d672232521d
 include README.md
 include electrodoge.desktop
 include *.py

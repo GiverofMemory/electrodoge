@@ -146,11 +146,7 @@ class NoDynamicFeeEstimates(Exception):
 class InvalidPassword(Exception):
     def __init__(self, message: Optional[str] = None):
         self.message = message
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> 4f574afe5af0f169a7d2799e62b6052b472fc8ad
     def __str__(self):
         if self.message is None:
             return _("Incorrect password")
