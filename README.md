@@ -1,4 +1,4 @@
-# ElectroDoge - Lightweight Dogecoin client
+# ElectroDoge - Lightweight [Dogecoin](https://github.com/dogecoin/dogecoin) client
 
 ```
 Licence: MIT Licence
