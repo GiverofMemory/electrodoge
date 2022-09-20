@@ -32,6 +32,7 @@ from . import constants
 from .util import bfh, bh2u, with_lock
 from .simple_config import SimpleConfig
 from .logging import get_logger, Logger
+from . import auxpow
 
 
 _logger = get_logger(__name__)
@@ -39,7 +40,7 @@ _logger = get_logger(__name__)
 HEADER_SIZE = 80  # bytes
 
 # see https://github.com/bitcoin/bitcoin/blob/feedb9c84e72e4fff489810a2bbeec09bcda5763/src/chainparams.cpp#L76
-MAX_TARGET = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # compact: 0x1d00ffff
+MAX_TARGET = 0x00000FFFF0000000000000000000000000000000000000000000000000000000  # compact: 0x1d00ffff
 
 
 class MissingHeader(Exception):
@@ -57,7 +58,7 @@ def serialize_header(header_dict: dict) -> str:
         + int_to_hex(int(header_dict['nonce']), 4)
     return s
 
-def deserialize_header(s: bytes, height: int) -> dict:
+def deserialize_pure_header(s: bytes, height: int) -> dict:
     if not s:
         raise InvalidHeader('Invalid header: {}'.format(s))
     if len(s) != HEADER_SIZE:
@@ -71,6 +72,29 @@ def deserialize_header(s: bytes, height: int) -> dict:
     h['bits'] = hex_to_int(s[72:76])
     h['nonce'] = hex_to_int(s[76:80])
     h['block_height'] = height
+    return h
+
+
+def deserialize_full_header(s: bytes, height: int, expect_trailing_data=False, start_position=0):
+    """Deserialises a full block header which may include AuxPoW.
+    If expect_trailing_data is true, then we allow trailing data and return
+    the end position in the byte array alongside the header dict.  Otherwise
+    an error is raised if there is trailing, unconsumed data."""
+
+    original_start = start_position
+
+    pure_header_bytes = s[start_position : start_position + HEADER_SIZE]
+    h = deserialize_pure_header(pure_header_bytes, height)
+    start_position += HEADER_SIZE
+
+    if auxpow.auxpow_active(h) and height > constants.net.max_checkpoint():
+        h['auxpow'], start_position = auxpow.deserialize_auxpow_header(h, s, start_position=start_position)
+
+    if expect_trailing_data:
+        return h, start_position
+
+    if start_position != len(s):
+        raise Exception('Invalid header length: {}'.format(len(s) - original_start))
     return h
 
 def hash_header(header: dict) -> str:
@@ -101,7 +125,7 @@ def read_blockchains(config: 'SimpleConfig'):
     # consistency checks
     if best_chain.height() > constants.net.max_checkpoint():
         header_after_cp = best_chain.read_header(constants.net.max_checkpoint()+1)
-        if not header_after_cp or not best_chain.can_connect(header_after_cp, check_height=False):
+        if not header_after_cp or not best_chain.can_connect(header_after_cp, check_height=False, skip_auxpow=True):
             _logger.info("[blockchain] deleting best chain. cannot connect header after last cp to last cp.")
             os.unlink(best_chain.path())
             best_chain.update_size()
@@ -293,7 +317,7 @@ class Blockchain(Logger):
         self._size = os.path.getsize(p)//HEADER_SIZE if os.path.exists(p) else 0
 
     @classmethod
-    def verify_header(cls, header: dict, prev_hash: str, target: int, expected_header_hash: str=None) -> None:
+    def verify_header(cls, header: dict, prev_hash: str, target: int, expected_header_hash: str=None, skip_auxpow: bool=False) -> None:
         _hash = hash_header(header)
         if expected_header_hash and expected_header_hash != _hash:
             raise Exception("hash mismatches with expected: {} vs {}".format(expected_header_hash, _hash))
@@ -301,28 +325,31 @@ class Blockchain(Logger):
             raise Exception("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if constants.net.TESTNET:
             return
-        bits = cls.target_to_bits(target)
-        if bits != header.get('bits'):
-            raise Exception("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
-        if block_hash_as_num > target:
-            raise Exception(f"insufficient proof of work: {block_hash_as_num} vs target {target}")
 
     def verify_chunk(self, index: int, data: bytes) -> None:
-        num = len(data) // HEADER_SIZE
+        stripped = bytearray()
+        start_position = 0
         start_height = index * 2016
         prev_hash = self.get_hash(start_height - 1)
         target = self.get_target(index-1)
-        for i in range(num):
+        i = 0
+        while start_position < len(data):
             height = start_height + i
             try:
                 expected_header_hash = self.get_hash(height)
             except MissingHeader:
                 expected_header_hash = None
-            raw_header = data[i*HEADER_SIZE : (i+1)*HEADER_SIZE]
-            header = deserialize_header(raw_header, index*2016 + i)
+
+            # Strip auxpow header for disk
+            stripped.extend(data[start_position:start_position+HEADER_SIZE])
+
+            header, start_position = deserialize_full_header(data, index*2016 + i, expect_trailing_data=True, start_position=start_position)
             self.verify_header(header, prev_hash, target, expected_header_hash)
             prev_hash = hash_header(header)
+
+            i = i + 1
+
+        return bytes(stripped)
 
     @with_lock
     def path(self):
@@ -474,7 +501,7 @@ class Blockchain(Logger):
                 raise Exception('Expected to read a full header. This was only {} bytes'.format(len(h)))
         if h == bytes([0])*HEADER_SIZE:
             return None
-        return deserialize_header(h, height)
+        return deserialize_pure_header(h, height)
 
     def header_at_tip(self) -> Optional[dict]:
         """Return latest header."""
@@ -612,7 +639,7 @@ class Blockchain(Logger):
         work_in_last_partial_chunk = (height % 2016 + 1) * work_in_single_header
         return running_total + work_in_last_partial_chunk
 
-    def can_connect(self, header: dict, check_height: bool=True) -> bool:
+    def can_connect(self, header: dict, check_height: bool=True, skip_auxpow: bool=False) -> bool:
         if header is None:
             return False
         height = header['block_height']
@@ -631,7 +658,7 @@ class Blockchain(Logger):
         except MissingHeader:
             return False
         try:
-            self.verify_header(header, prev_hash, target)
+            self.verify_header(header, prev_hash, target, skip_auxpow=skip_auxpow)
         except BaseException as e:
             return False
         return True
