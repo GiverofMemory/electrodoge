@@ -82,6 +82,8 @@ class BitcoinMainnet(AbstractNet):
     DEFAULT_SERVERS = read_json('servers.json', {})
     CHECKPOINTS = read_json('checkpoints.json', [])
     BLOCK_HEIGHT_FIRST_LIGHTNING_CHANNELS = 497000
+    AUXPOW_START_HEIGHT = 371337
+    AUXPOW_CHAIN_ID = 0x0062
 
     XPRV_HEADERS = {
         'standard':    0x02fac398,  # xprv
