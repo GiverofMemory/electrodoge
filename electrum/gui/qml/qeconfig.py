@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from electrum.logging import get_logger
 from electrum.util import DECIMAL_POINT_DEFAULT, format_satoshis
+from electrum.invoices import PR_DEFAULT_EXPIRATION_WHEN_CREATING
 
 from .qetypes import QEAmount
 from .auth import AuthMixin, auth_protect
@@ -81,6 +82,16 @@ class QEConfig(AuthMixin, QObject):
         self.config.set_key('confirmed_only', not checked, True)
         self.spendUnconfirmedChanged.emit()
 
+    requestExpiryChanged = pyqtSignal()
+    @pyqtProperty(int, notify=requestExpiryChanged)
+    def requestExpiry(self):
+        return self.config.get('request_expiry', PR_DEFAULT_EXPIRATION_WHEN_CREATING)
+
+    @requestExpiry.setter
+    def requestExpiry(self, expiry):
+        self.config.set_key('request_expiry', expiry)
+        self.requestExpiryChanged.emit()
+
     pinCodeChanged = pyqtSignal()
     @pyqtProperty(str, notify=pinCodeChanged)
     def pinCode(self):
@@ -108,6 +119,16 @@ class QEConfig(AuthMixin, QObject):
     def useGossip(self, gossip):
         self.config.set_key('use_gossip', gossip)
         self.useGossipChanged.emit()
+
+    useFallbackAddressChanged = pyqtSignal()
+    @pyqtProperty(bool, notify=useFallbackAddressChanged)
+    def useFallbackAddress(self):
+        return self.config.get('bolt11_fallback', True)
+
+    @useFallbackAddress.setter
+    def useFallbackAddress(self, use_fallback):
+        self.config.set_key('bolt11_fallback', use_fallback)
+        self.useFallbackAddressChanged.emit()
 
     @pyqtSlot('qint64', result=str)
     @pyqtSlot('qint64', bool, result=str)

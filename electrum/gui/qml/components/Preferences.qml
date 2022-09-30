@@ -149,6 +149,18 @@ Pane {
                         }
 
                         Label {
+                            text: qsTr('Default request expiry')
+                            Layout.fillWidth: false
+                        }
+
+                        RequestExpiryComboBox {
+                            onCurrentValueChanged: {
+                                if (activeFocus)
+                                    Config.requestExpiry = currentValue
+                            }
+                        }
+
+                        Label {
                             text: qsTr('PIN')
                         }
 
@@ -210,6 +222,17 @@ Pane {
                                     Config.useGossip = currentValue == 'gossip'
                             }
                         }
+
+                        Switch {
+                            id: useFallbackAddress
+                            text: qsTr('Use onchain fallback address for Lightning invoices')
+                            Layout.columnSpan: 2
+                            onCheckedChanged: {
+                                if (activeFocus)
+                                    Config.useFallbackAddress = checked
+                            }
+                        }
+
                     }
 
                 }
@@ -263,6 +286,7 @@ Pane {
         fiatEnable.checked = Daemon.fx.enabled
         spendUnconfirmed.checked = Config.spendUnconfirmed
         lnRoutingType.currentIndex = Config.useGossip ? 0 : 1
+        useFallbackAddress.checked = Config.useFallbackAddress
 
         var plugins = AppController.plugins
         for (var i=0; i<plugins.length; i++) {
