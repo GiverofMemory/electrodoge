@@ -30,13 +30,6 @@ ElDialog {
         height: parent.height
         columns: 2
 
-        Rectangle {
-            height: 1
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
-            color: Material.accentColor
-        }
-
         Label {
             text: qsTr('Amount to send')
             color: Material.accentColor
@@ -227,7 +220,7 @@ ElDialog {
         Label {
             visible: invoice.invoiceType == Invoice.LightningInvoice
             Layout.fillWidth: true
-            text: invoice.lnprops.pubkey
+            text: invoice.lnprops ? invoice.lnprops.pubkey : ''
             font.family: FixedFont
             wrapMode: Text.Wrap
         }
@@ -241,7 +234,7 @@ ElDialog {
         Label {
             visible: invoice.invoiceType == Invoice.LightningInvoice
             Layout.fillWidth: true
-            text: invoice.lnprops.t
+            text: invoice.lnprops ? invoice.lnprops.t : ''
             font.family: FixedFont
             wrapMode: Text.Wrap
         }
@@ -255,7 +248,7 @@ ElDialog {
         Label {
             visible: invoice.invoiceType == Invoice.LightningInvoice
             Layout.fillWidth: true
-            text: invoice.lnprops.r
+            text: invoice.lnprops ? invoice.lnprops.r : ''
             font.family: FixedFont
             wrapMode: Text.Wrap
         }
@@ -290,12 +283,23 @@ ElDialog {
             Layout.alignment: Qt.AlignHCenter
             spacing: constants.paddingMedium
 
-            Button {
+            FlatButton {
                 text: qsTr('Delete')
                 icon.source: '../../icons/delete.png'
                 visible: invoice_key != ''
                 onClicked: {
                     invoice.wallet.delete_invoice(invoice_key)
+                    dialog.close()
+                }
+            }
+
+            FlatButton {
+                text: qsTr('Save')
+                icon.source: '../../icons/save.png'
+                visible: invoice_key == ''
+                enabled: invoice.canSave
+                onClicked: {
+                    invoice.save_invoice()
                     dialog.close()
                 }
             }
@@ -309,11 +313,6 @@ ElDialog {
                         invoice.save_invoice()
                     dialog.close()
                     doPay() // only signal here
-                    // if (invoice.invoiceType == Invoice.OnchainInvoice) {
-                    //     doPay() // only signal here
-                    // } else if (invoice.invoiceType == Invoice.LightningInvoice) {
-                    //     doPay() // only signal here
-                    // }
                 }
             }
         }
