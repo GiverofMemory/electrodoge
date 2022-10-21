@@ -107,10 +107,13 @@ class QEInvoice(QObject):
             self.userinfoChanged.emit()
 
     def get_max_spendable_onchain(self):
-        c, u, x = self._wallet.wallet.get_balance()
-        #TODO determine real max
-        return c
+        spendable = self._wallet.confirmedBalance.satsInt
+        if not self._wallet.wallet.config.get('confirmed_only', False):
+            spendable += self._wallet.unconfirmedBalance.satsInt
+        return spendable
 
+    def get_max_spendable_lightning(self):
+        return self._wallet.wallet.lnworker.num_sats_can_send()
 
 class QEInvoiceParser(QEInvoice):
 
@@ -123,7 +126,7 @@ class QEInvoiceParser(QEInvoice):
     _userinfo = ''
 
     invoiceChanged = pyqtSignal()
-    invoiceSaved = pyqtSignal()
+    invoiceSaved = pyqtSignal([str], arguments=['key'])
 
     validationSuccess = pyqtSignal()
     validationWarning = pyqtSignal([str,str], arguments=['code', 'message'])
@@ -182,7 +185,7 @@ class QEInvoiceParser(QEInvoice):
     def amount(self, new_amount):
         self._logger.debug(f'set new amount {repr(new_amount)}')
         if self._effectiveInvoice:
-            self._effectiveInvoice.amount_msat = int(new_amount.satsInt * 1000)
+            self._effectiveInvoice.amount_msat = '!' if new_amount.isMax else int(new_amount.satsInt * 1000)
 
         self.determine_can_pay()
         self.invoiceChanged.emit()
@@ -265,8 +268,10 @@ class QEInvoiceParser(QEInvoice):
         self.statusChanged.emit()
 
     def determine_can_pay(self):
-        if self.amount.satsInt == 0:
-            self.canPay = False
+        self.canPay = False
+        self.userinfo = ''
+
+        if self.amount.isEmpty: # unspecified amount
             return
 
         if self.invoiceType == QEInvoice.Type.LightningInvoice:
@@ -274,7 +279,7 @@ class QEInvoiceParser(QEInvoice):
                 if self.get_max_spendable_lightning() >= self.amount.satsInt:
                     self.canPay = True
                 else:
-                    self.userinfo = _('Can\'t pay, insufficient balance')
+                    self.userinfo = _('Insufficient balance')
             else:
                 self.userinfo = {
                         PR_EXPIRED: _('Invoice is expired'),
@@ -285,7 +290,11 @@ class QEInvoiceParser(QEInvoice):
                     }[self.status]
         elif self.invoiceType == QEInvoice.Type.OnchainInvoice:
             if self.status in [PR_UNPAID, PR_FAILED]:
-                if self.get_max_spendable_onchain() >= self.amount.satsInt:
+                if self.amount.isMax and self.get_max_spendable_onchain() > 0:
+                    # TODO: dust limit?
+                    self.canPay = True
+                elif self.get_max_spendable_onchain() >= self.amount.satsInt:
+                    # TODO: dust limit?
                     self.canPay = True
                 else:
                     self.userinfo = _('Insufficient balance')
@@ -296,16 +305,6 @@ class QEInvoiceParser(QEInvoice):
                         PR_UNCONFIRMED: _('Invoice is already paid'),
                         PR_UNKNOWN: _('Invoice has unknown status'),
                     }[self.status]
-
-
-    def get_max_spendable_lightning(self):
-        return self._wallet.wallet.lnworker.num_sats_can_send()
-
-    # def setValidAddressOnly(self):
-    #     self._logger.debug('setValidAddressOnly')
-    #     self.setInvoiceType(QEInvoice.Type.OnchainOnlyAddress)
-    #     self._effectiveInvoice = None
-    #     self.invoiceChanged.emit()
 
     def setValidOnchainInvoice(self, invoice: Invoice):
         self._logger.debug('setValidOnchainInvoice')
@@ -490,10 +489,14 @@ class QEInvoiceParser(QEInvoice):
         self.canSave = False
         if not self._effectiveInvoice:
             return
-        # TODO detect duplicate?
+
         self.key = self._effectiveInvoice.get_id()
-        self._wallet.wallet.save_invoice(self._effectiveInvoice)
-        self.invoiceSaved.emit()
+        if self._wallet.wallet.get_invoice(self.key):
+            self._logger.info(f'invoice {self.key} already exists')
+        else:
+            self._wallet.wallet.save_invoice(self._effectiveInvoice)
+            self._wallet.invoiceModel.addInvoice(self.key)
+            self.invoiceSaved.emit(self.key)
 
 
 class QEUserEnteredPayment(QEInvoice):
