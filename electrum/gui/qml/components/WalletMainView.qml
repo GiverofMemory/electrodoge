@@ -256,12 +256,32 @@ Item {
         }
     }
 
+    Connections {
+        target: Daemon.currentWallet
+        function onOtpRequested() {
+            console.log('OTP requested')
+            var dialog = otpDialog.createObject(mainView)
+            dialog.accepted.connect(function() {
+                console.log('accepted ' + dialog.otpauth)
+                Daemon.currentWallet.finish_otp(dialog.otpauth)
+            })
+            dialog.open()
+        }
+        function onBroadcastFailed() {
+            notificationPopup.show(qsTr('Broadcast transaction failed'))
+        }
+    }
+
     Component {
         id: sendDialog
         SendDialog {
             width: parent.width
             height: parent.height
 
+            onTxFound: {
+                app.stack.push(Qt.resolvedUrl('TxDetails.qml'), { rawtx: data })
+                close()
+            }
             onClosed: destroy()
         }
     }
@@ -299,6 +319,16 @@ Item {
         id: lnurlPayDialog
         LnurlPayRequestDialog {
             width: parent.width * 0.9
+            anchors.centerIn: parent
+
+            onClosed: destroy()
+        }
+    }
+
+    Component {
+        id: otpDialog
+        OtpDialog {
+            width: parent.width * 2/3
             anchors.centerIn: parent
 
             onClosed: destroy()
