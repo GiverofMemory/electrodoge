@@ -72,7 +72,11 @@
   !define MUI_ABORTWARNING
   !define MUI_ABORTWARNING_TEXT "Are you sure you wish to abort the installation of ${PRODUCT_NAME}?"
 
+<<<<<<< HEAD
   !define MUI_ICON "c:\electrodoge\electrum\gui\icons\electrodoge.ico"
+=======
+  !define MUI_ICON "..\..\electrum\gui\icons\electrum.ico"
+>>>>>>> bab1c6da863c9f2debfa1ed4c89ec97203d7c4ce
 
 ;--------------------------------
 ;Pages
@@ -111,7 +115,11 @@ Section
 
   ;Files to pack into the installer
   File /r "dist\electrum\*.*"
+<<<<<<< HEAD
   File "c:\electrodoge\electrum\gui\icons\electrodoge.ico"
+=======
+  File "..\..\electrum\gui\icons\electrum.ico"
+>>>>>>> bab1c6da863c9f2debfa1ed4c89ec97203d7c4ce
 
   ;Store installation folder
   WriteRegStr HKCU "Software\${PRODUCT_NAME}" "" $INSTDIR
