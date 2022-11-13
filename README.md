@@ -1,17 +1,18 @@
 # ElectroDoge - Lightweight [Dogecoin](https://github.com/dogecoin/dogecoin) client
 
 ```
-Licence: MIT Licence
-Author: Thomas Voegtlin
-Language: Python (>= 3.8)
-Homepage: https://electrum.org/
-
-and
-
 Dogecoin Devs
 Fully Open Source with no conditions for everything including pictures and name
 Homepage: https://electrodoge.com
 Initial Commit based on: https://github.com/GlobalBoost/electrum/commit/6d7c7a1cb5c384377b24391bcbc7b797462b980a
+
+and 
+
+Electrum Devs
+Licence: MIT Licence
+Author: Thomas Voegtlin
+Language: Python (>= 3.8)
+Homepage: https://electrum.org/
 ```
 
 [![Build Status](https://api.cirrus-ci.com/github/spesmilo/electrum.svg?branch=master)](https://cirrus-ci.com/github/spesmilo/electrum)
