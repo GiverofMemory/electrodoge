@@ -9,7 +9,7 @@ Homepage: https://electrum.org/
 and
 
 Dogecoin Devs
-Fully Open Source for everything including pictures and name
+Fully Open Source with no conditions for everything including pictures and name
 Homepage: https://electrodoge.com
 Initial Commit based on: https://github.com/GlobalBoost/electrum/commit/6d7c7a1cb5c384377b24391bcbc7b797462b980a
 ```
