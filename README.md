@@ -149,3 +149,7 @@ Besides [GitHub](https://github.com/spesmilo/electrum),
 most communication about Electrum development happens on IRC, in the
 `#electrum` channel on Libera Chat. The easiest way to participate on IRC is
 with the web client, [web.libera.chat](https://web.libera.chat/#electrum).
+
+## Migration
+
+If you want to migrate from Electrodoge to Dogecoin core [see here](https://bitcointalk.org/index.php?topic=5320198.0).
