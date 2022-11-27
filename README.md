@@ -152,6 +152,8 @@ with the web client, [web.libera.chat](https://web.libera.chat/#electrum).
 
 ## Migration
 
+Uses [BIP32 address](https://en.bitcoin.it/wiki/Electrum#History) generation.
+
 If you want to migrate from Electrodoge to Dogecoin core [see here](https://bitcointalk.org/index.php?topic=5320198.0).
 
 Between [Exodus and Electrodoge](https://bitcointalk.org/index.php?topic=5325562.0).
