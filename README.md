@@ -154,6 +154,8 @@ with the web client, [web.libera.chat](https://web.libera.chat/#electrum).
 
 If you want to migrate from Electrodoge to Dogecoin core [see here](https://bitcointalk.org/index.php?topic=5320198.0).
 
+Between [Exodus and Electrodoge](https://bitcointalk.org/index.php?topic=5325562.0).
+
 ## To Do
 
 - xPub is corrected for dogecoin but others like yPub and zPub have not been modified from bitcoin yet.
