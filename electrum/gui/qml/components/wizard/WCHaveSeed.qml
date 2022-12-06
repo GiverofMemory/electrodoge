@@ -5,21 +5,32 @@ import QtQuick.Controls.Material 2.0
 
 import org.electrum 1.0
 
-import ".."
 import "../controls"
 
 WizardComponent {
     id: root
+
     valid: false
 
     property bool is2fa: false
+    property int cosigner: 0
+    property int participants: 0
+    property string multisigMasterPubkey: wizard_data['multisig_master_pubkey']
 
     function apply() {
-        wizard_data['seed'] = seedtext.text
-        wizard_data['seed_variant'] = seed_variant.currentValue
-        wizard_data['seed_type'] = bitcoin.seed_type
-        wizard_data['seed_extend'] = extendcb.checked
-        wizard_data['seed_extra_words'] = extendcb.checked ? customwordstext.text : ''
+        if (cosigner) {
+            wizard_data['multisig_cosigner_data'][cosigner.toString()]['seed'] = seedtext.text
+            wizard_data['multisig_cosigner_data'][cosigner.toString()]['seed_variant'] = seed_variant_cb.currentValue
+            wizard_data['multisig_cosigner_data'][cosigner.toString()]['seed_type'] = bitcoin.seed_type
+            wizard_data['multisig_cosigner_data'][cosigner.toString()]['seed_extend'] = extendcb.checked
+            wizard_data['multisig_cosigner_data'][cosigner.toString()]['seed_extra_words'] = extendcb.checked ? customwordstext.text : ''
+        } else {
+            wizard_data['seed'] = seedtext.text
+            wizard_data['seed_variant'] = seed_variant_cb.currentValue
+            wizard_data['seed_type'] = bitcoin.seed_type
+            wizard_data['seed_extend'] = extendcb.checked
+            wizard_data['seed_extra_words'] = extendcb.checked ? customwordstext.text : ''
+        }
     }
 
     function setSeedTypeHelpText() {
@@ -40,11 +51,26 @@ WizardComponent {
                 qsTr('However, we do not generate SLIP39 seeds.')
             ].join(' ')
         }
-        infotext.text = t[seed_variant.currentValue]
+        infotext.text = t[seed_variant_cb.currentValue]
     }
 
     function checkValid() {
-        bitcoin.verify_seed(seedtext.text, seed_variant.currentValue, wizard_data['wallet_type'])
+        valid = false
+        validationtext.text = ''
+
+        var validSeed = bitcoin.verifySeed(seedtext.text, seed_variant_cb.currentValue, wizard_data['wallet_type'])
+        if (!cosigner || !validSeed) {
+            valid = validSeed
+            return
+        } else {
+            apply()
+            if (wiz.hasDuplicateKeys(wizard_data)) {
+                validationtext.text = qsTr('Error: duplicate master public key')
+                return
+            } else {
+                valid = true
+            }
+        }
     }
 
     Flickable {
@@ -59,12 +85,65 @@ WizardComponent {
             columns: 2
 
             Label {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                visible: cosigner
+                text: qsTr('Here is your master public key. Please share it with your cosigners')
+                wrapMode: Text.Wrap
+            }
+
+            TextHighlightPane {
+                visible: cosigner
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                padding: 0
+                leftPadding: constants.paddingSmall
+
+                RowLayout {
+                    width: parent.width
+                    Label {
+                        Layout.fillWidth: true
+                        text: multisigMasterPubkey
+                        font.pixelSize: constants.fontSizeMedium
+                        font.family: FixedFont
+                        wrapMode: Text.Wrap
+                    }
+                    ToolButton {
+                        icon.source: '../../../icons/share.png'
+                        icon.color: 'transparent'
+                        onClicked: {
+                            var dialog = app.genericShareDialog.createObject(app,
+                                { title: qsTr('Master public key'), text: multisigMasterPubkey }
+                            )
+                            dialog.open()
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.columnSpan: 2
+                Layout.preferredWidth: parent.width
+                Layout.preferredHeight: 1
+                Layout.topMargin: constants.paddingLarge
+                Layout.bottomMargin: constants.paddingLarge
+                visible: cosigner
+                color: Material.accentColor
+            }
+
+            Label {
+                Layout.columnSpan: 2
+                visible: cosigner
+                text: qsTr('Cosigner #%1 of %2').arg(cosigner).arg(participants)
+            }
+
+            Label {
+                Layout.fillWidth: true
                 visible: !is2fa
                 text: qsTr('Seed Type')
-                Layout.fillWidth: true
             }
             ComboBox {
-                id: seed_variant
+                id: seed_variant_cb
                 visible: !is2fa
 
                 textRole: 'text'
@@ -85,7 +164,7 @@ WizardComponent {
                 Layout.columnSpan: 2
             }
             Label {
-                text: qsTr('Enter your seed')
+                text: cosigner ? qsTr('Enter cosigner seed') : qsTr('Enter your seed')
                 Layout.columnSpan: 2
             }
             SeedTextArea {
@@ -114,7 +193,7 @@ WizardComponent {
             }
             TextArea {
                 id: validationtext
-                visible: text != ''
+                visible: text
                 Layout.fillWidth: true
                 readOnly: true
                 wrapMode: TextInput.WordWrap
@@ -127,6 +206,7 @@ WizardComponent {
                 id: extendcb
                 Layout.columnSpan: 2
                 text: qsTr('Extend seed with custom words')
+                onCheckedChanged: validationTimer.restart()
             }
             TextField {
                 id: customwordstext
@@ -134,6 +214,7 @@ WizardComponent {
                 Layout.fillWidth: true
                 Layout.columnSpan: 2
                 placeholderText: qsTr('Enter your custom word(s)')
+                onTextChanged: validationTimer.restart()
             }
         }
     }
@@ -141,8 +222,7 @@ WizardComponent {
     Bitcoin {
         id: bitcoin
         onSeedTypeChanged: contentText.text = bitcoin.seed_type
-        onSeedValidChanged: root.valid = bitcoin.seed_valid
-        onValidationMessageChanged: validationtext.text = bitcoin.validation_message
+        onValidationMessageChanged: validationtext.text = validationMessage
     }
 
     Timer {
@@ -153,14 +233,14 @@ WizardComponent {
     }
 
     Component.onCompleted: {
+        if (wizard_data['wallet_type'] == '2fa') {
+            is2fa = true
+        } else if (wizard_data['wallet_type'] == 'multisig') {
+            participants = wizard_data['multisig_participants']
+            if ('multisig_current_cosigner' in wizard_data)
+                cosigner = wizard_data['multisig_current_cosigner']
+        }
         setSeedTypeHelpText()
     }
 
-    onReadyChanged: {
-        if (!ready)
-            return
-
-        if (wizard_data['wallet_type'] == '2fa')
-            root.is2fa = true
-    }
 }

@@ -75,7 +75,7 @@ Item {
             icon.color: 'transparent'
             action: Action {
                 text: qsTr('Network');
-                onTriggered: menu.openPage(Qt.resolvedUrl('NetworkStats.qml'))
+                onTriggered: menu.openPage(Qt.resolvedUrl('NetworkOverview.qml'))
                 icon.source: '../../icons/network.png'
             }
         }
@@ -235,12 +235,12 @@ Item {
                             'satoshis': invoice.amount,
                             'message': invoice.message
                     })
-                    var wo = Daemon.currentWallet.isWatchOnly
+                    var canComplete = !Daemon.currentWallet.isWatchOnly && Daemon.currentWallet.canSignWithoutCosigner
                     dialog.txaccepted.connect(function() {
-                        if (wo) {
-                            showUnsignedTx(dialog.finalizer.serializedTx(false), dialog.finalizer.serializedTx(true))
+                        if (!canComplete) {
+                            dialog.finalizer.signAndSave()
                         } else {
-                            dialog.finalizer.send_onchain()
+                            dialog.finalizer.signAndSend()
                         }
                     })
                     dialog.open()

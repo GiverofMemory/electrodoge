@@ -2,7 +2,9 @@ import QtQuick 2.6
 import QtQuick.Layouts 1.0
 import QtQuick.Controls 2.1
 
-Dialog {
+import "../controls"
+
+ElDialog {
     id: wizard
     modal: true
     focus: true
@@ -10,9 +12,21 @@ Dialog {
     width: parent.width
     height: parent.height
 
+    title: wizardTitle + (pages.currentItem.title ? ' - ' + pages.currentItem.title : '')
+    iconSource: '../../../icons/electrum.png'
+
+    property string wizardTitle
+
     property var wizard_data
     property alias pages: pages
     property QtObject wiz
+
+    function doClose() {
+        if (pages.currentIndex == 0)
+            reject()
+        else
+            pages.prev()
+    }
 
     function _setWizardData(wdata) {
         wizard_data = {}
@@ -32,13 +46,16 @@ Dialog {
         }
 
         var url = Qt.resolvedUrl(wiz.viewToComponent(view))
-        console.log(url)
         var comp = Qt.createComponent(url)
         if (comp.status == Component.Error) {
             console.log(comp.errorString())
             return null
         }
-        var page = comp.createObject(pages)
+
+        // make a deepcopy of wdata and pass it to the component
+        var wdata_copy={}
+        Object.assign(wdata_copy, wdata)
+        var page = comp.createObject(pages, {wizard_data: wdata_copy})
         page.validChanged.connect(function() {
             pages.pagevalid = page.valid
         } )
@@ -58,8 +75,7 @@ Dialog {
             var wdata = wiz.prev()
             console.log('prev view data: ' + JSON.stringify(wdata))
         })
-        Object.assign(page.wizard_data, wdata) // deep copy
-        page.ready = true // signal page it can access wizard_data
+
         pages.pagevalid = page.valid
         pages.lastpage = page.last
 
@@ -150,39 +166,6 @@ Dialog {
                 }
 
             }
-        }
-    }
-
-    header: GridLayout {
-        columns: 2
-        rowSpacing: 0
-
-        Image {
-            source: "../../../icons/electrum.png"
-            Layout.preferredWidth: constants.iconSizeXLarge
-            Layout.preferredHeight: constants.iconSizeXLarge
-            Layout.leftMargin: constants.paddingMedium
-            Layout.topMargin: constants.paddingMedium
-            Layout.bottomMargin: constants.paddingMedium
-        }
-
-        Label {
-            text: title
-            elide: Label.ElideRight
-            Layout.fillWidth: true
-            topPadding: constants.paddingXLarge
-            bottomPadding: constants.paddingXLarge
-            font.bold: true
-            font.pixelSize: constants.fontSizeMedium
-        }
-
-        Rectangle {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-            Layout.leftMargin: constants.paddingTiny
-            Layout.rightMargin: constants.paddingTiny
-            height: 1
-            color: Qt.rgba(0,0,0,0.5)
         }
     }
 

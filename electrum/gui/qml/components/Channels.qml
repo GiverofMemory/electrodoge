@@ -140,14 +140,52 @@ Pane {
         FlatButton {
             Layout.fillWidth: true
             text: qsTr('Open Channel')
-            onClicked: app.stack.push(Qt.resolvedUrl('OpenChannel.qml'))
+            onClicked: {
+                var dialog = openChannelDialog.createObject(root)
+                dialog.open()
+            }
             icon.source: '../../icons/lightning.png'
+        }
+
+        FlatButton {
+            Layout.fillWidth: true
+            text: qsTr('Import channel backup')
+            onClicked: {
+                var dialog = importChannelBackupDialog.createObject(root)
+                dialog.open()
+            }
+            icon.source: '../../icons/file.png'
         }
 
     }
 
+    Connections {
+        target: Daemon.currentWallet
+        function onImportChannelBackupFailed(message) {
+            var dialog = app.messageDialog.createObject(root, { text: message })
+            dialog.open()
+        }
+    }
+
     Component {
         id: swapDialog
-        SwapDialog {}
+        SwapDialog {
+            onClosed: destroy()
+        }
     }
+
+    Component {
+        id: openChannelDialog
+        OpenChannelDialog {
+            onClosed: destroy()
+        }
+    }
+
+    Component {
+        id: importChannelBackupDialog
+        ImportChannelBackupDialog {
+            onClosed: destroy()
+        }
+    }
+
 }

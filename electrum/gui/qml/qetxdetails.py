@@ -2,16 +2,14 @@ from PyQt5.QtCore import pyqtProperty, pyqtSignal, pyqtSlot, QObject
 
 from electrum.i18n import _
 from electrum.logging import get_logger
-from electrum.util import format_time
+from electrum.util import format_time, AddTransactionException
 from electrum.transaction import tx_from_any
 
 from .qewallet import QEWallet
 from .qetypes import QEAmount
+from .util import QtEventListener, event_listener
 
-class QETxDetails(QObject):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
+class QETxDetails(QObject, QtEventListener):
     _logger = get_logger(__name__)
 
     _wallet = None
@@ -39,6 +37,7 @@ class QETxDetails(QObject):
     _is_unrelated = False
     _is_complete = False
     _is_mined = False
+    _is_final = False
 
     _mempool_depth = ''
 
@@ -49,8 +48,24 @@ class QETxDetails(QObject):
     _header_hash = ''
 
     confirmRemoveLocalTx = pyqtSignal([str], arguments=['message'])
+    saveTxError = pyqtSignal([str,str], arguments=['code', 'message'])
+    saveTxSuccess = pyqtSignal()
 
     detailsChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.register_callbacks()
+        self.destroyed.connect(lambda: self.on_destroy())
+
+    def on_destroy(self):
+        self.unregister_callbacks()
+
+    @event_listener
+    def on_event_verified(self, wallet, txid, info):
+        if wallet == self._wallet.wallet and txid == self._txid:
+            self._logger.debug('verified event for our txid %s' % txid)
+            self.update()
 
     walletChanged = pyqtSignal()
     @pyqtProperty(QEWallet, notify=walletChanged)
@@ -89,9 +104,9 @@ class QETxDetails(QObject):
                 return
             try:
                 self._tx = tx_from_any(rawtx, deserialize=True)
-                self._logger.debug('tx type is %s' % str(type(self._tx)))
                 self.txid = self._tx.txid() # triggers update()
             except Exception as e:
+                self._tx = None
                 self._logger.error(repr(e))
 
     labelChanged = pyqtSignal()
@@ -198,6 +213,10 @@ class QETxDetails(QObject):
     def isComplete(self):
         return self._is_complete
 
+    @pyqtProperty(bool, notify=detailsChanged)
+    def isFinal(self):
+        return self._is_final
+
     def update(self):
         if self._wallet is None:
             self._logger.error('wallet undefined')
@@ -208,6 +227,9 @@ class QETxDetails(QObject):
             self._tx = self._wallet.wallet.get_input_tx(self._txid)
 
         #self._logger.debug(repr(self._tx.to_json()))
+
+        self._logger.debug('adding info from wallet')
+        self._tx.add_info_from_wallet(self._wallet.wallet)
 
         self._inputs = list(map(lambda x: x.to_json(), self._tx.inputs()))
         self._outputs = list(map(lambda x: {
@@ -245,13 +267,14 @@ class QETxDetails(QObject):
                 self._lnamount.satsInt = 0
 
         self._is_complete = self._tx.is_complete()
+        self._is_final = self._tx.is_final()
         self._is_unrelated = txinfo.amount is None and self._lnamount.isEmpty
         self._is_lightning_funding_tx = txinfo.is_lightning_funding_tx
         self._can_bump = txinfo.can_bump
         self._can_dscancel = txinfo.can_dscancel
         self._can_broadcast = txinfo.can_broadcast
         self._can_cpfp = txinfo.can_cpfp
-        self._can_save_as_local = txinfo.can_save_as_local
+        self._can_save_as_local = txinfo.can_save_as_local and not txinfo.can_remove
         self._can_remove = txinfo.can_remove
         self._can_sign = not self._is_complete and self._wallet.wallet.can_sign(self._tx)
 
@@ -331,6 +354,25 @@ class QETxDetails(QObject):
 
         self._wallet.wallet.adb.remove_transaction(txid)
         self._wallet.wallet.save_db()
+
+    @pyqtSlot()
+    def save(self):
+        if not self._tx:
+            return
+
+        try:
+            if not self._wallet.wallet.adb.add_transaction(self._tx):
+                self.saveTxError.emit('conflict',
+                        _("Transaction could not be saved.") + "\n" + _("It conflicts with current history."))
+                return
+            self._wallet.wallet.save_db()
+            self.saveTxSuccess.emit()
+        except AddTransactionException as e:
+            self.saveTxError.emit('error', str(e))
+        finally:
+            self._can_save_as_local = False
+            self._can_remove = True
+            self.detailsChanged.emit()
 
     @pyqtSlot(result=str)
     @pyqtSlot(bool, result=str)
