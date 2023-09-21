@@ -1,5 +1,7 @@
 # ElectroDoge - Lightweight [Dogecoin](https://github.com/dogecoin/dogecoin) client
 
+May move to [bitbucket](https://bitbucket.org/naturevault/) or [Gitlab](https://gitlab.com/giverofmemory/) due to mandatory 2FA here.
+
 ```
 Dogecoin Devs
 Fully Open Source with no conditions for everything including pictures and name
